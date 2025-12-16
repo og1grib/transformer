@@ -56,7 +56,11 @@ class MultiheadAttention(nn.Module):
         # [batch_size, num_heads, query_seq_len, seq_len]
         
         if self.masked:
-            mask = torch.tril(torch.ones((query_seq_len, seq_len))).to(torch.bool)
+            mask = torch.tril(torch.ones((query_seq_len, seq_len),
+                device=relevance.device,
+                dtype=torch.bool
+            ))
+
             relevance = relevance.masked_fill(~mask, float('-inf'))
         
         relevance = torch.softmax(relevance, dim=-1)
