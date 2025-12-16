@@ -12,7 +12,8 @@ class MultiheadAttention(nn.Module):
         head_size,                         # размерность голов внимания    
             
         query_cross_attention_size=None,   # размерность входных эмбеддингов для query (кросс-внимания)
-        masked=False                       # маскирование (декодер)
+        masked=False,                      # маскирование (декодер)
+        return_attn=False
         ):
         
         super().__init__()
@@ -30,7 +31,7 @@ class MultiheadAttention(nn.Module):
         
         self.masked = masked
         self.query_input_size = query_input_size
-        
+        self.return_attn = return_attn
         
     def forward(self, query, key, value):
         # q, k, v [batch_size, seq_len, input_size]
@@ -75,5 +76,8 @@ class MultiheadAttention(nn.Module):
         out = self.feed_forward(concat)
         # [batch_size, query_seq_len, output_size]
         
+        if self.return_attn:
+            return out, relevance
         return out
+
     

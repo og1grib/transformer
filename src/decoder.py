@@ -33,14 +33,34 @@ class DecoderBlock(nn.Module):
             
         self.norm_1 = nn.LayerNorm(output_size)
         
-        self.enc_like_block = EncoderBlock(
-            encoder_output_size, # key, value
-            output_size,
-            num_heads,
-            head_size,
-            hidden_size,
-            query_cross_attention_size=output_size # query
-            ) 
+        # self.enc_like_block = EncoderBlock(
+        #     encoder_output_size, # key, value
+        #     output_size,
+        #     num_heads,
+        #     head_size,
+        #     hidden_size,
+        #     query_cross_attention_size=output_size # query
+        #     ) 
+        
+        self.cross_attention = MultiheadAttention(
+            input_size=encoder_output_size,     # key/value
+            output_size=output_size,
+            num_heads=num_heads,
+            head_size=head_size,
+            query_cross_attention_size=output_size,
+            return_attn=True
+        )
+
+        self.norm_2 = nn.LayerNorm(output_size)
+
+        self.feed_forward = nn.Sequential(
+            nn.Linear(output_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, output_size)
+        )
+
+        self.norm_3 = nn.LayerNorm(output_size)
+
         
     def forward(self, x, enc_out):
         # [batch_size, seq_len, input_size]
@@ -53,12 +73,24 @@ class DecoderBlock(nn.Module):
         x = self.norm_1(x)
         
         # Encoder-Decoder Attention
-        x = self.enc_like_block(x, enc_out, enc_out)
+        cross_out, cross_attn = self.cross_attention(
+            x, enc_out, enc_out
+        )
+
+        # Add & Norm
+        x = x + cross_out
+        x = self.norm_2(x)
         
-        # [batch_size, seq_len, output_size]
-        return x
-    
-    
+        # Feed-forward
+        ff_out = self.feed_forward(x)
+        
+        # Add & Norm
+        x = x + ff_out
+        x = self.norm_3(x)
+
+        return x, cross_attn
+
+        
 class DecoderTransformer(nn.Module):
     
     def __init__(
@@ -90,9 +122,11 @@ class DecoderTransformer(nn.Module):
     def forward(self, x, enc_out):
         # x: [batch_size, seq_len, input_size]
         out = x
+        attn = None
             
         for block in self.decoder_blocks.values():
-            out = block(out, enc_out)  
+            out, attn = block(out, enc_out)
         
         # x: [batch_size, seq_len, output_size]
-        return out
+        return out, attn
+    

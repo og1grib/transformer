@@ -61,10 +61,11 @@ class Transformer(nn.Module):
         
         # [batch, seq_len, output_size_enc]
         enc_out = self.encoder(enc_pos)
-        dec_out = self.decoder(dec_pos, enc_out)
+        dec_out, attn = self.decoder(dec_pos, enc_out)
         
-        out = self.linear(dec_out)
+        logits = self.linear(dec_out)
         # out = self.softmax(out)
         
-        return out
+        return logits, attn
+
         
